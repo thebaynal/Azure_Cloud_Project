@@ -3,6 +3,20 @@
 ## Overview
 This document provides step-by-step instructions for deploying the MaScan QR Attendance Checker application on Microsoft Azure.
 
+## Project Overview, Team Members, Video Link, and Demo URL
+
+**Project**: MaScan QR Attendance Checker - Azure Cloud Deployment
+
+**Team Members:**
+- John Raymon Alba
+- Fredrick Ortinero
+- Divino Al Ricafort
+- Mark Vincent Raña
+
+**Video Link**: [Add video link here]
+
+**Demo URL**: [Add Application Gateway IP URL here]
+
 ## Team Members
 - John Raymon Alba
 - Fredrick Ortinero
