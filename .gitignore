@@ -1,0 +1,61 @@
+# Azure Deployment Artifacts
+*.tfstate
+*.tfstate.*
+.terraform/
+*.zip
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS Files
+Thumbs.db
+.DS_Store
+
+# Node modules (if using Node.js application)
+node_modules/
+npm-debug.log
+
+# Python files
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+*.egg-info/
+
+# Logs
+logs/
+*.log
+
+# Azure-specific files to ignore
+.azure/
+azure_config.json
+
+# Credentials and Secrets (NEVER commit these)
+*.pem
+*.key
+*.p12
+app.secrets.json
+.env
+.env.local
+secrets.json
+
+# Application-specific
+dist/
+build/
+.next/
+.nuxt/
+
+# Temporary files
+temp/
+tmp/
+.tmp/
+
+# Screenshots for documentation (optional - gittrack or not based on preference)
+# deployment/screenshots/
