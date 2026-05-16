@@ -1,17 +1,17 @@
-# Technical Report: Cloud Architecture & Deployment Analysis
+# Technical Report: MaScan — Cloud Architecture & Deployment
 
-**Project:** Cloud Web Application Deployment on Azure  
-**Course:** CSEC 3 – Cloud Computing  
-**Team Members:** [List names]  
-**Date:** [YYYY-MM-DD]
+**Project:** MaScan — Cloud Web Application Deployment on Azure
+**Course:** CSEC 3 – Cloud Computing
+**Team Members:** MaScan Team
+**Date:** 2026-05-16
 
 ---
 
 ## 1. Introduction
 
-This technical report documents the design, deployment, and optimization of a cloud-native web application on Microsoft Azure. The project demonstrates the application of cloud architecture principles to solve a real-world scenario, with focus on fault tolerance, scalability, and operational excellence.
+This report documents the MaScan cloud deployment on Microsoft Azure, covering architecture, deployment steps, security, monitoring, cost estimates, and recommendations for future improvements. The objective is a low-cost, maintainable deployment suitable for student projects and small production workloads.
 
-**Selected Scenario:** [Choose: School Portal / E-Commerce Storefront / Student Enrollment System / Community Blog Platform / Custom]
+**Selected Scenario:** Student attendance / lab access portal (dockerized Flask app with SQLite for demo)
 
 ---
 
@@ -19,219 +19,133 @@ This technical report documents the design, deployment, and optimization of a cl
 
 ### 2.1 Baseline Architecture
 
-#### Components
-- **Frontend:** App Service (2 instances for HA)
-- **Backend:** App Service Plan (B1 tier)
-- **Database:** Azure SQL Database (Basic tier)
-- **Storage:** Azure Storage Account (ZRS)
-- **Networking:** Virtual Network, NSG
+Components:
+- **Container Registry:** Azure Container Registry (Basic SKU) for storing Docker images.
+- **App Platform:** Azure App Service (Linux) running a Docker container from ACR.
+- **Persistent Storage:** App Service `/home` mount for SQLite DB (suitable only for low-concurrency/demo use).
+- **Monitoring:** Application Insights + Azure Monitor for logs/alerts.
+- **CI/CD:** GitHub Actions or Azure Pipelines to build and push images to ACR.
 
-#### Data Flow
-[Describe how data flows through your system]
+Data flow summary:
+1. Developers push code to repository.
+2. CI builds Docker image and pushes to `mascanregistry1111` (ACR).
+3. App Service pulls the Docker image from ACR and runs the container.
+4. Application writes local DB to `/home/data/mascan_attendance.db` and serves web traffic.
 
-### 2.2 Cloud Optimizations Implemented
+### 2.2 Design Rationale
 
-#### Optimization 1: [Name]
-**Approach:** [Description]
-**Implementation:** [How was it implemented?]
-**Benefits:** [What improvements does it provide?]
-**Metrics:** [Any measurable improvements?]
-
-#### Optimization 2: [Name]
-**Approach:** [Description]
-**Implementation:** [How was it implemented?]
-**Benefits:** [What improvements does it provide?]
-**Metrics:** [Any measurable improvements?]
+- SQLite on App Service keeps costs minimal and simplifies setup for demos. It is NOT suitable for heavy concurrent writes or multi-instance scaling.
+- Using ACR + App Service simplifies deployment and provides a path to replace the DB with Azure SQL or PostgreSQL when scaling.
 
 ---
 
 ## 3. Deployment Strategy
 
-### 3.1 Infrastructure as Code (IaC)
+### 3.1 Infrastructure-as-Commands
 
-**Tool Used:** [Azure CLI / Bicep / ARM Templates]
+Primary tooling: Azure CLI and Docker (scripts provided in `deployment/deploy.azcli`). Key steps from `README-AZURE.md`:
 
-**Key Files:**
-- `deploy.azcli` – Main deployment script
-- `parameters.json` – Configuration parameters
-- `bicep/` – Bicep templates (if applicable)
+1. `az login`
+2. `az group create --name mascan-rg --location eastus`
+3. `az acr create --resource-group mascan-rg --name mascanregistry1111 --sku Basic --admin-enabled true`
+4. Build and push the Docker image (see below) to ACR.
+5. Create an App Service Plan (B1) and a Web App configured to use the ACR image.
+6. Configure application settings and enable App Service storage.
 
-**Deployment Process:**
-1. [Step 1]
-2. [Step 2]
-3. [Step 3]
+Deployment validation checklist:
+- App URL returns HTTP 200 and expected UI
+- Environment variables present in App Service configuration
+- Persistent DB file present in `/home/data/`
+- Logs available via `az webapp log tail`
 
-### 3.2 Deployment Validation
+### 3.2 Build & Deploy (CI/CD)
 
-**Testing Checklist:**
-- ✅ All resources created successfully
-- ✅ Application deployed and accessible
-- ✅ Database connectivity verified
-- ✅ Load balancing working correctly
-- ✅ Failover tested (if applicable)
-- ✅ Security rules enforced
-
-**Results:** [Describe validation results]
-
----
-
-## 4. Performance Analysis
-
-### 4.1 Baseline Performance Metrics
-
-| Metric | Baseline | Target | Achieved |
-|--------|----------|--------|----------|
-| Response Time (p95) | — ms | < 200ms | — ms |
-| Throughput | — req/sec | — req/sec | — req/sec |
-| Availability | — % | 99.5% | — % |
-| Database Latency | — ms | < 50ms | — ms |
-
-### 4.2 Optimized Performance Metrics
-
-[Compare metrics after implementing optimizations]
+Suggested pipeline steps (GitHub Actions):
+- Build Docker image
+- Login to ACR (via `az acr login` or `docker login` with service principal)
+- Push image to ACR
+- Update App Service container settings or slot deployment
 
 ---
 
-## 5. Security Implementation
+## 4. Security
 
-### 5.1 Security Controls
+### 4.1 Controls
 
-- **Authentication:** [Describe auth method]
-- **Authorization:** [Describe authorization strategy]
-- **Encryption:** [Encryption at rest and in transit]
-- **Network Security:** [NSG rules, WAF if applicable]
-- **Secrets Management:** [Key Vault or similar]
+- **Secrets:** Use Azure Key Vault to store `SECRET_KEY` and any DB/password-like secrets; use managed identity to access Key Vault from App Service.
+- **Transport:** TLS is provided by App Service (HTTPS).
+- **Network:** Use App Service access restrictions if limiting IP ranges is needed.
 
-### 5.2 Security Testing
+### 4.2 Recommendations
 
-[Describe any security testing performed]
-
----
-
-## 6. Cost Management
-
-### 6.1 Cost Breakdown
-[Reference cost-estimate.md for detailed analysis]
-
-### 6.2 Cost Optimization Strategies
-
-1. [Strategy 1 and projected savings]
-2. [Strategy 2 and projected savings]
-3. [Strategy 3 and projected savings]
+1. Rotate `SECRET_KEY` and do not store it in source code.
+2. Use managed identities and Key Vault for any credentials.
+3. Limit diagnostic log retention and sanitize PII before logging.
 
 ---
 
-## 7. Lessons Learned
+## 5. Monitoring & Observability
+
+### 5.1 Recommended Metrics
+
+- HTTP response time (p95)
+- Request rate
+- Error rate (4xx / 5xx)
+- CPU / Memory for container
+- Free disk space on `/home`
+
+### 5.2 Alerts
+
+- Alert on high error rate (>1% sustained), high CPU (>80% 5m), low disk (<200MB free), and budget thresholds.
+
+Commands:
+```powershell
+az webapp log tail --resource-group mascan-rg --name mascan-app
+az monitor metrics list --resource /subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/mascan-rg/providers/Microsoft.Web/sites/mascan-app --metric CPUPercentage
+```
+
+---
+
+## 6. Cost Summary
+
+Refer to [cost-estimate.md](cost-estimate.md) for a line-item breakdown and recommendations. Key points:
+
+- Baseline demo deployment: low-cost (single B1 instance + ACR)
+- Primary variable costs are App Service compute and outbound bandwidth
+- Use Azure for Students credits and application sampling to reduce costs
+
+---
+
+## 7. Lessons Learned & Recommendations
 
 ### 7.1 Technical Challenges
 
-**Challenge 1:** [Description]
-- **Solution:** [How was it resolved?]
-- **Outcome:** [Result]
+- **SQLite persistence limits:** The App Service `/home` mount persists across restarts but is not suited for high concurrency. Solution: plan migration to Azure Database when needed.
+- **Image access permissions:** App Service requires correct ACR credentials or system-assigned managed identity with `acrpull` role.
 
-**Challenge 2:** [Description]
-- **Solution:** [How was it resolved?]
-- **Outcome:** [Result]
+### 7.2 Best Practices Adopted
 
-### 7.2 Best Practices Implemented
+1. Use environment variables for all runtime configuration.
+2. Enable Application Insights with sampling in non-debug environments.
+3. Tag resources by `project`, `environment`, and `owner` for cost tracking.
 
-1. [Best practice and its benefit]
-2. [Best practice and its benefit]
-3. [Best practice and its benefit]
+### 7.3 Operational Recommendations
 
-### 7.3 Recommendations for Future Work
-
-- [ ] [Recommendation 1]
-- [ ] [Recommendation 2]
-- [ ] [Recommendation 3]
+1. Add a lightweight backup/export job to periodically export the SQLite DB to Blob Storage.
+2. Implement autoscale (or move to scale-to-zero services) before increasing user concurrency.
+3. Add scheduled cleanup of old logs and artifacts to control storage costs.
 
 ---
 
-## 8. Scalability Analysis
+## 8. Appendix — Commands & Useful Links
 
-### 8.1 Current Capacity
-
-- **Current Users:** [Number]
-- **Current Load:** [Requests/sec]
-- **Resource Utilization:** [%]
-
-### 8.2 Scaling Strategy
-
-**Horizontal Scaling:** [How does your system scale horizontally?]
-- Auto-scale rules: [Describe triggers and actions]
-- Max instances: [Number]
-
-**Vertical Scaling:** [If applicable]
-- Current tier: [Tier]
-- Maximum tier: [Tier]
-
-### 8.3 Scalability Testing
-
-[Describe any load testing performed]
+- Deploy script: [deployment/deploy.azcli](../deployment/deploy.azcli)
+- README / quick-start: [README-AZURE.md](../README-AZURE.md)
+- Azure docs: https://learn.microsoft.com/azure/
 
 ---
 
-## 9. Monitoring & Observability
+**Report Prepared By:** MaScan Team  
+**Date:** 2026-05-16  
+**Status:** Final
 
-### 9.1 Monitoring Tools
-
-- **Application Insights:** [Metrics tracked]
-- **Azure Monitor:** [Alerts configured]
-- **Log Analytics:** [Log retention and analysis]
-
-### 9.2 Key Metrics & KPIs
-
-| KPI | Current Value | Target | Alert Threshold |
-|-----|---|---|---|
-| [Metric 1] | — | — | — |
-| [Metric 2] | — | — | — |
-| [Metric 3] | — | — | — |
-
----
-
-## 10. Compliance & Governance
-
-### 10.1 Compliance Requirements
-
-- ✅ [Requirement 1]
-- ✅ [Requirement 2]
-- ✅ [Requirement 3]
-
-### 10.2 Resource Tagging Strategy
-
-All resources tagged with:
-- `project`: cloud-computing-project
-- `environment`: development
-- `owner`: [team-name]
-- `cost-center`: [code]
-
----
-
-## 11. Conclusion
-
-This project successfully demonstrates the design and deployment of a cloud-native web application on Microsoft Azure. By implementing [Optimization 1] and [Optimization 2], we have achieved [measurable benefits]. The architecture is scalable, secure, and cost-effective for the intended use case.
-
-### Key Achievements
-1. ✅ [Achievement 1]
-2. ✅ [Achievement 2]
-3. ✅ [Achievement 3]
-
-### Future Improvements
-1. 🔄 [Future improvement 1]
-2. 🔄 [Future improvement 2]
-3. 🔄 [Future improvement 3]
-
----
-
-## 12. References
-
-- [Azure Architecture Center](https://learn.microsoft.com/en-us/azure/architecture/)
-- [Azure Well-Architected Framework](https://learn.microsoft.com/en-us/azure/architecture/framework/)
-- [Project Cost Estimate Report](cost-estimate.md)
-- [Deployment Documentation](../deployment/README.md)
-
----
-
-**Report Prepared By:** [Team Members]  
-**Date:** [YYYY-MM-DD]  
-**Status:** Final / Draft / In Progress
