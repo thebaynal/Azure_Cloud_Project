@@ -13,9 +13,9 @@ This document provides step-by-step instructions for deploying the MaScan QR Att
 - Divino Al Ricafort
 - Mark Vincent Raña
 
-**Video Link**: [Add video link here]
+**Video Link**: https://youtu.be/sHimFjR4bxU
 
-**Demo URL**: [Add Application Gateway IP URL here]
+**Demo URL**: https://mascan-qr-acexb0a8febaacab.southeastasia-01.azurewebsites.net/login
 
 ## Team Members
 - John Raymon Alba
