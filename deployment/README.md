@@ -1,29 +1,20 @@
-# Deployment Documentation
+# MaScan Deployment Guide — Azure
 
-This directory contains all deployment instructions and resources for the Azure Cloud Project.
-
----
-
-## 📋 Deployment Overview
-
-**Architecture Type:** [Baseline / Optimized]  
-**Deployment Method:** [Azure CLI / Azure Bicep / Azure Portal GUI]  
-**Target Region:** [e.g., Southeast Asia]  
-**Resource Group:** [e.g., rg-cloud-project-prod]
+This guide provides step-by-step instructions for deploying the MaScan application to Microsoft Azure using Azure App Service and Azure Container Registry.
 
 ---
 
-## 🔧 Prerequisites
+## 📋 Prerequisites
 
 Before beginning deployment, ensure you have:
 
-- ✅ Azure for Students account with active credits
-- ✅ Azure CLI installed (`az --version` to verify)
-- ✅ Azure PowerShell (optional, for advanced operations)
-- ✅ Git configured with GitHub credentials
-- ✅ Appropriate permissions in your Azure subscription
+- ✅ **Azure for Students account** (free at https://azure.microsoft.com/en-us/free/students/)
+- ✅ **Azure CLI installed** (verify with `az --version`)
+- ✅ **Docker Desktop installed**
+- ✅ **Git installed**
 
 ### Install Azure CLI
+
 ```bash
 # Windows
 msiexec /i https://aka.ms/InstallAzureCliBundledWindows
@@ -37,67 +28,225 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
 ---
 
-## 🚀 Deployment Options
+## 🚀 Step-by-Step Deployment
 
-### Option A: Using Azure CLI Script
+### Step 1 — Log in to Azure
 
-1. **Authenticate with Azure:**
-   ```bash
-   az login
-   ```
-   Follow the browser prompt and select your Azure for Students account.
+Open a terminal and authenticate with your Azure account:
 
-2. **Verify your subscription:**
-   ```bash
-   az account show
-   ```
+```bash
+az login
+```
 
-3. **Review deployment script:**
-   - Open `deploy.azcli` in your text editor
-   - Update variable values (resource names, regions, etc.)
-   - Ensure no hardcoded passwords are present
-
-4. **Execute the deployment script:**
-   ```bash
-   # On Linux/macOS
-   chmod +x deploy.azcli
-   ./deploy.azcli
-
-   # On Windows PowerShell
-   .\deploy.azcli
-   ```
-
-5. **Monitor deployment progress:**
-   - Check the Azure Portal for resource creation status
-   - Wait for all resources to transition to "Succeeded" status
-
-6. **Post-deployment validation:**
-   ```bash
-   az resource list --resource-group [YOUR_RESOURCE_GROUP] --output table
-   ```
-
-### Option B: Using Azure Portal GUI
-
-Follow the step-by-step screenshots in the `screenshots/` folder:
-
-1. [Step 01] Create Resource Group
-2. [Step 02] Deploy App Service Plan
-3. [Step 03] Deploy App Service (x2 instances)
-4. [Step 04] Configure Database
-5. [Step 05] Set up Storage Account
-6. [Step 06] Configure Security and NSGs
-7. [Step 07] Deploy Load Balancer (if applicable)
-8. [Step 08] Configure Monitoring
-
-For each screenshot, follow the highlighted steps and settings shown.
+A browser window will open. Sign in with your school email (Azure for Students account).
 
 ---
 
-## 📊 Resources Deployed
+### Step 2 — Create a Resource Group
 
-| Resource Type | Resource Name | Configuration |
-|---------------|---------------|---|
-| Resource Group | [rg-name] | [Region] |
+Create a resource group to organize all your resources:
+
+```bash
+az group create --name mascan-rg --location eastus
+```
+
+> You can change `eastus` to a region closer to you:
+> - `southeastasia`, `eastasia`, `westeurope`, `centralus`, etc.
+
+---
+
+### Step 3 — Create an Azure Container Registry (ACR)
+
+The Container Registry stores your Docker images.
+
+```bash
+az acr create --resource-group mascan-rg --name mascanregistry1111 --sku Basic --admin-enabled true
+```
+
+> If `mascanregistry1111` is already taken, use a unique name like `mascan2025registry`.
+
+Retrieve your ACR credentials (you'll need these in Step 8):
+
+```bash
+az acr credential show --name mascanregistry1111
+```
+
+**Note:** Save the username and password for later use.
+
+---
+
+### Step 4 — Build and Push Docker Image
+
+From the root of the repository, build and push the Docker image to ACR:
+
+```bash
+# Log in to your container registry
+az acr login --name mascanregistry1111
+
+# Build the image
+docker build -t mascanregistry1111.azurecr.io/mascan:latest .
+
+# Push the image to ACR
+docker push mascanregistry1111.azurecr.io/mascan:latest
+```
+
+---
+
+### Step 5 — Create Azure App Service Plan
+
+Create an App Service Plan (B1 is free tier eligible for Azure for Students):
+
+```bash
+az appservice plan create \
+  --name mascan-plan \
+  --resource-group mascan-rg \
+  --is-linux \
+  --sku B1
+```
+
+---
+
+### Step 6 — Create the Web App
+
+Create the Web App and configure it to use the Docker image from ACR:
+
+```bash
+az webapp create \
+  --resource-group mascan-rg \
+  --plan mascan-plan \
+  --name mascan-app \
+  --deployment-container-image-name mascanregistry1111.azurecr.io/mascan:latest
+```
+
+> If `mascan-app` is already taken, use something unique like `mascan-attendance-2025`.
+
+---
+
+### Step 7 — Configure Environment Variables
+
+Set application environment variables:
+
+```bash
+az webapp config appsettings set \
+  --resource-group mascan-rg \
+  --name mascan-app \
+  --settings \
+    SECRET_KEY="replace-with-a-long-random-secret" \
+    DB_PATH="/home/data/mascan_attendance.db" \
+    SESSION_FILE_DIR="/home/flask_session" \
+    WEBSITES_PORT=8000
+```
+
+**Generate a strong SECRET_KEY:**
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Replace the `SECRET_KEY` value above with the output.
+
+---
+
+### Step 8 — Enable Persistent Storage
+
+Configure App Service to persist data across restarts:
+
+```bash
+az webapp config appsettings set \
+  --resource-group mascan-rg \
+  --name mascan-app \
+  --settings WEBSITES_ENABLE_APP_SERVICE_STORAGE=true
+```
+
+---
+
+### Step 9 — Configure Container Registry Authentication
+
+Give App Service access to pull images from ACR:
+
+```bash
+az webapp config container set \
+  --name mascan-app \
+  --resource-group mascan-rg \
+  --docker-custom-image-name mascanregistry1111.azurecr.io/mascan:latest \
+  --docker-registry-server-url https://mascanregistry1111.azurecr.io \
+  --docker-registry-server-user mascanregistry1111 \
+  --docker-registry-server-password "<password-from-step-3>"
+```
+
+Replace `<password-from-step-3>` with the password you saved in Step 3.
+
+---
+
+### Step 10 — Launch the Application
+
+Open your app in the browser:
+
+```bash
+az webapp browse --resource-group mascan-rg --name mascan-app
+```
+
+Your app will be live at:
+
+```
+https://mascan-app.azurewebsites.net
+```
+
+---
+
+## 🔄 Updating the Application
+
+After making code changes, rebuild and redeploy:
+
+```bash
+docker build -t mascanregistry1111.azurecr.io/mascan:latest .
+docker push mascanregistry1111.azurecr.io/mascan:latest
+az webapp restart --resource-group mascan-rg --name mascan-app
+```
+
+---
+
+## 🔍 Troubleshooting
+
+### View application logs
+
+```bash
+az webapp log tail --resource-group mascan-rg --name mascan-app
+```
+
+### Restart the application
+
+```bash
+az webapp restart --resource-group mascan-rg --name mascan-app
+```
+
+### Check deployment status
+
+```bash
+az resource list --resource-group mascan-rg --output table
+```
+
+---
+
+## 💰 Cost Estimate (Azure for Students)
+
+| Resource | Monthly Cost |
+|----------|---|
+| App Service B1 | ~$13 (or free with student credits) |
+| Container Registry Basic | ~$5 |
+| Storage | Negligible |
+
+**Azure for Students provides $100 free credits** — sufficient to run this deployment for several months.
+
+---
+
+## 📚 Additional Resources
+
+- [Azure App Service Documentation](https://learn.microsoft.com/azure/app-service/)
+- [Azure Container Registry Docs](https://learn.microsoft.com/azure/container-registry/)
+- [Azure CLI Reference](https://learn.microsoft.com/cli/azure/)
+- Main guide: [README-AZURE.md](../README-AZURE%20(1).md)
+- Technical report: [report.md](../report/report.md)
 | App Service Plan | [asp-name] | [Pricing Tier] |
 | App Service | [app-name-1] | [Instance 1] |
 | App Service | [app-name-2] | [Instance 2] |
