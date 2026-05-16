@@ -142,6 +142,12 @@ If simple load balancing is sufficient, use Azure Load Balancer instead.
 
 ---
 
+## Azure Pricing Calculator Screenshot
+
+![Azure Pricing Calculator Screenshot](../deployment/screenshots/cost_estimate.png)
+
+---
+
 ## Comparison with Alternatives
 
 | Deployment | Monthly Cost | Trade-offs |
@@ -162,24 +168,6 @@ If simple load balancing is sufficient, use Azure Load Balancer instead.
 - Storage usage estimated at 500 MB/month (CSV uploads + PDF exports)
 - Autoscaling assumes occasional traffic spikes (70% CPU threshold)
 - Application Gateway kept for fault tolerance (recommended for production)
-
----
-
-## Azure Pricing Calculator Screenshot
-
-![Azure Pricing Calculator Screenshot](699374375_1527038065443566_5869958139053443451_n.png)
-
-**To generate your own screenshot:**
-1. Go to https://azure.microsoft.com/en-us/pricing/calculator/
-2. Add resources:
-   - App Service (B2 Standard) × 2-5 instances
-   - Azure SQL Database (Standard S1)
-   - Storage Account (Standard LRS)
-   - Application Gateway (Standard v2)
-   - Application Insights (Standard)
-3. Set Region: Southeast Asia
-4. Take screenshot of "Total Estimated Monthly Cost" section
-5. Save as PNG in this folder
 
 ---
 
@@ -209,5 +197,5 @@ This is competitive with other cloud providers and includes enterprise-grade fea
 ---
 
 **Report Generated**: 2026-05-12  
-**Prepared By**: [Your Name]  
-**Review Date**: [Date completed]
+**Prepared By**: Fredrick Orintero 
+**Review Date**: May 17. 2026
