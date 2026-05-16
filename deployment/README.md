@@ -352,15 +352,5 @@ az resource list --resource-group [YOUR_RESOURCE_GROUP] --query "[?name=='[resou
 
 ---
 
-## 👥 Deployment Log
-
-| Date | Member | Action | Status |
-|------|--------|--------|--------|
-| [YYYY-MM-DD] | [Name] | Created Resource Group | ✅ |
-| [YYYY-MM-DD] | [Name] | Deployed App Service Plan | ✅ |
-| [YYYY-MM-DD] | [Name] | Deployed Database | ✅ |
-
----
-
-**Last Updated:** [YYYY-MM-DD]  
-**Deployment Status:** [In Progress / Completed / Tested]
+**Last Updated:** [2026-5-16]  
+**Deployment Status:** [Completed]
